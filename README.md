@@ -1,44 +1,38 @@
-# Kusaira Conventor (Media Toolkit)
+# Kusaira Conventor
 
-Универсальная и мощная утилита для массовой и быстрой работы с медиафайлами. Разработана для проекта **Kusaira** с целью автоматизации подготовки аниме-серий к загрузке в Telegram. 
+**Kusaira Conventor** is a fast and lightweight media processing toolkit designed for batch video optimization.
 
-## Возможности
+## 🔥 Key Features
 
-1. **Конвертация видео в MP4 (HEVC + AAC)**
-   - Автоматически находит все видео в папке (`.mkv`, `.avi`, `.mov` и др.)
-   - Перекодирует видео в кодек H.265 (HEVC) с использованием аппаратного ускорения NVENC (очень быстро!)
-   - Ужимает битрейт и размер без потери визуального качества
-   - Форматирует аудио в AAC
+1. **Turbo MP4 Conversion**
+   - Hardware-accelerated (NVENC) batch conversion to HEVC/H.265 + AAC.
+   - Significantly compresses file size with zero visual quality loss.
 
-2. **Safe Mode (Удаление / Редактирование аудио и сабов)**
-   - *Шаг 1:* Удаление всех лишних аудиодорожек, субтитров, глобальных тегов и встроенных шрифтов.
-   - *Шаг 2:* Выбор и сохранение только определенной видео- и аудиодорожки по ID.
-   - *Шаг 3:* Слияние (muxing) с внешним аудиофайлом (`.mka` или `.ac3`).
+2. **Safe Mode (Track Cleanup)**
+   - Easily strip unnecessary audio tracks, hardsubs, global tags, and embedded fonts.
+   - Keep only the clean video/audio streams you need by specifying their IDs.
+   - Seamlessly merge external audio files (`.mka` or `.ac3`) into your videos.
 
-3. **Умное переименование серий**
-   - Утилита находит все видеофайлы в папке.
-   - Позволяет задать кастомный префикс (например, `Наруто`).
-   - Автоматически сортирует файлы по номеру серии (распознает числа в названии) и переименовывает в стандартизированный формат вида: `[1]_Наруто.mp4` или просто `[1].mp4`.
-   - Защита от перезаписи: если файл уже существует, автоматически добавляет индекс.
+3. **Smart Renamer**
+   - Automatically extracts episode numbers from messy file names and standardizes them (e.g., `[1]_Prefix.mp4`).
+   - Built-in overwrite protection to prevent data loss.
 
-## Установка и использование
+## 📥 How to Use
 
-Для обычного использования скачайте готовый `.exe` файл из вкладки **Releases**.
+1. Download `anime_toolkit.exe` from the **Releases** section.
+2. Place the file inside the folder containing your videos.
+3. Run it directly! **No installation required** (FFmpeg and MKVToolNix are already bundled inside).
 
-1. Поместите `anime_toolkit.exe` в папку с вашими видеофайлами.
-2. Запустите двойным кликом.
-3. Введите номер нужной операции в меню и нажмите Enter.
+## 🛠 Build from Source
 
-### Зависимости (для разработчиков)
+If you prefer to run the Python script directly or build your own executable:
 
-Если вы запускаете скрипт `.py` напрямую, вам потребуются утилиты `ffmpeg` и `mkvmerge`:
-- [FFmpeg](https://ffmpeg.org/download.html)
-- [MKVToolNix (mkvmerge)](https://mkvtoolnix.download/downloads.html)
-
-При сборке в `.exe` эти зависимости могут быть вшиты внутрь исполняемого файла с помощью PyInstaller.
-
-## Сборка EXE
 ```bash
+# Clone the repository
+git clone https://github.com/kusaira/kusaira_conventor.git
+cd kusaira_conventor
+
+# Build the executable
 pyinstaller --clean --onefile anime_toolkit.py
 ```
-*(Для работы функций ремукса и конвертации требуется, чтобы ffmpeg.exe и mkvmerge.exe находились в папке с программой или были зашиты внутрь с помощью аргумента --add-binary)*
+*(Note: For the remuxing and conversion features to work properly, `ffmpeg.exe` and `mkvmerge.exe` must be present in the same directory, or bundled using the `--add-binary` argument in PyInstaller).*
