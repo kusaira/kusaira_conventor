@@ -1,0 +1,9 @@
+*.exe
+*.zip
+*.7z
+build/
+dist/
+temp_converted/
+temp/
+__pycache__/
+*.spec
