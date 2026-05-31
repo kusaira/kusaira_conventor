@@ -167,13 +167,15 @@ def smart_rename():
         print("Нет видеофайлов для переименования.")
         return
 
-    ignore_list = {'1080', '720', '480', '2160', '264', '265', '10', '8'}
+    ignore_list = {'720', '480', '2160', '264', '265', '10-bit', '8-bit'}
     files_with_nums = []
     
     for filename in files:
         name, ext = os.path.splitext(filename)
-        numbers = re.findall(r'\d+', name)
-        valid_numbers = [num for num in numbers if num not in ignore_list and not (1990 <= int(num) <= 2030)]
+        # Ищем числа, игнорируем -bit
+        name_clean = name.replace('10-bit', '').replace('8-bit', '').replace('10bit', '').replace('8bit', '')
+        numbers = re.findall(r'\d+', name_clean)
+        valid_numbers = [num for num in numbers if num not in ignore_list and int(num) < 1080]
         if valid_numbers:
             files_with_nums.append((filename, valid_numbers, ext))
             
