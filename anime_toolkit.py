@@ -23,6 +23,24 @@ def get_tool_path(tool_name):
 def mp4_convert():
     ffmpeg = get_tool_path('ffmpeg.exe')
     print("Автоматическая конвертация ВСЕХ видео в MP4 (HEVC + AAC) с удалением оригиналов...")
+    print("\nВыберите кодировщик для конвертации:")
+    print("1. NVIDIA (hevc_nvenc) - Видеокарты GeForce (Быстро)")
+    print("2. AMD (hevc_amf) - Видеокарты Radeon")
+    print("3. Intel (hevc_qsv) - Встроенная/дискретная графика Intel")
+    print("4. Процессор (libx265) - Медленно, универсально")
+    enc_choice = input("Ваш выбор (по умолчанию 1): ").strip()
+    
+    if enc_choice == '2':
+        vcodec = "hevc_amf"
+    elif enc_choice == '3':
+        vcodec = "hevc_qsv"
+    elif enc_choice == '4':
+        vcodec = "libx265"
+    else:
+        vcodec = "hevc_nvenc"
+        
+    print(f"\nВыбран кодек: {vcodec}")
+    
     if not os.path.exists("temp_converted"):
         os.makedirs("temp_converted")
     
@@ -39,7 +57,11 @@ def mp4_convert():
         name, _ = os.path.splitext(f)
         out_path = os.path.join("temp_converted", f"{name}.mp4")
         
-        cmd = [ffmpeg, "-i", f, "-c:v", "hevc_nvenc", "-preset", "fast", "-b:v", "8000k", "-maxrate", "10000k", "-bufsize", "16000k", "-c:a", "aac", "-b:a", "192k", out_path]
+        if vcodec == "libx265":
+            cmd = [ffmpeg, "-i", f, "-c:v", vcodec, "-preset", "fast", "-crf", "26", "-c:a", "aac", "-b:a", "192k", out_path]
+        else:
+            cmd = [ffmpeg, "-i", f, "-c:v", vcodec, "-preset", "fast", "-b:v", "8000k", "-maxrate", "10000k", "-bufsize", "16000k", "-c:a", "aac", "-b:a", "192k", out_path]
+            
         res = subprocess.run(cmd)
         
         if res.returncode != 0:
