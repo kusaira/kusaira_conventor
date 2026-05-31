@@ -76,18 +76,29 @@ def safe_mode():
         print("Неверный выбор!")
         return
         
-    video_id = ""
-    audio_ids = ""
-    if '2' in valid_choices:
-        video_id = input("Введите ID видеодорожки: ")
-        audio_ids = input("Введите ID аудиодорожек (через запятую): ")
-        audio_ids = audio_ids.replace(' ', ',').replace(',,', ',')
-        if audio_ids.endswith(','): audio_ids = audio_ids[:-1]
-        
     exts = ('*.mkv', '*.mp4', '*.hevc', '*.avi', '*.h264', '*.m2ts', '*.ogm', '*.mpg')
     files = []
     for e in exts: files.extend(glob.glob(e))
     
+    if not files:
+        print("В папке нет подходящих видеофайлов.")
+        return
+        
+    video_id = ""
+    audio_ids = ""
+    if '2' in valid_choices:
+        print("\n--- Дорожки в первом файле ---")
+        try:
+            res = subprocess.run([mkvmerge, "-i", files[0]], capture_output=True, text=True, encoding='utf-8', errors='ignore')
+            print(res.stdout.strip())
+        except Exception as e:
+            print("Не удалось получить список дорожек:", e)
+        print("------------------------------\n")
+        
+        video_id = input("Введите ID видеодорожки: ")
+        audio_ids = input("Введите ID аудиодорожек (через запятую): ")
+        audio_ids = audio_ids.replace(' ', ',').replace(',,', ',')
+        if audio_ids.endswith(','): audio_ids = audio_ids[:-1]
     for f in files:
         name, ext = os.path.splitext(f)
         output = f"{name}_processed.mkv"
