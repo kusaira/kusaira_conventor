@@ -4,6 +4,8 @@ import subprocess
 import glob
 import re
 
+import json
+
 def get_tool_path(tool_name):
     # PyInstaller creates a temp folder and stores path in _MEIPASS
     if hasattr(sys, '_MEIPASS'):
@@ -87,13 +89,31 @@ def safe_mode():
     video_id = ""
     audio_ids = ""
     if '2' in valid_choices:
-        print("\n--- Дорожки в первом файле ---")
+        print("\n=== Дорожки в первом файле ===")
         try:
-            res = subprocess.run([mkvmerge, "-i", files[0]], capture_output=True, text=True, encoding='utf-8', errors='ignore')
-            print(res.stdout.strip())
+            res = subprocess.run([mkvmerge, "-J", files[0]], capture_output=True, text=True, encoding='utf-8', errors='ignore')
+            data = json.loads(res.stdout)
+            tracks = data.get('tracks', [])
+            if not tracks:
+                print("Дорожки не найдены.")
+            else:
+                for track in tracks:
+                    tid = track.get('id', '?')
+                    ttype = track.get('type', 'unknown').upper()
+                    codec = track.get('codec', '')
+                    
+                    props = track.get('properties', {})
+                    lang = props.get('language', '')
+                    name = props.get('track_name', '')
+                    
+                    info = f"ID: {tid} | {ttype}"
+                    if codec: info += f" | {codec}"
+                    if lang: info += f" | Яз: {lang}"
+                    if name: info += f" | '{name}'"
+                    print(info)
         except Exception as e:
-            print("Не удалось получить список дорожек:", e)
-        print("------------------------------\n")
+            print("Не удалось распарсить дорожки:", e)
+        print("==============================\n")
         
         video_id = input("Введите ID видеодорожки: ")
         audio_ids = input("Введите ID аудиодорожек (через запятую): ")
