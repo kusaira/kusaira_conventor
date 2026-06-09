@@ -21,7 +21,12 @@ def get_tool_path(tool_name):
     return tool_name
 
 def mp4_convert():
+    import shutil
     ffmpeg = get_tool_path('ffmpeg.exe')
+    if not shutil.which(ffmpeg) and not os.path.exists(ffmpeg):
+        print("\n[КРИТИЧЕСКАЯ ОШИБКА] Не найден файл ffmpeg.exe!")
+        print("Скопируйте ffmpeg.exe в ту же папку, где находится anime_toolkit.exe и ваше видео.")
+        return
     print("Автоматическая конвертация ВСЕХ видео в MP4 (HEVC + AAC) с удалением оригиналов...")
     print("\nВыберите кодировщик для конвертации:")
     print("1. NVIDIA (hevc_nvenc) - Видеокарты GeForce (Быстро)")
@@ -70,15 +75,21 @@ def mp4_convert():
                 os.remove(out_path)
         else:
             print(f"[УСПЕХ] Конвертация завершена. Удаляю старый файл...")
-            os.remove(f)
-            
+            try:
+                os.remove(f)
+            except Exception as e:
+                print(f"[ОШИБКА] Не удалось удалить старый файл {f}: {e}")
+                
     print("\nПеремещаю новые файлы в текущую папку...")
     new_files = glob.glob("temp_converted/*.mp4")
     for nf in new_files:
         dest = os.path.basename(nf)
-        if os.path.exists(dest):
-            os.remove(dest)
-        os.rename(nf, dest)
+        try:
+            if os.path.exists(dest):
+                os.remove(dest)
+            os.rename(nf, dest)
+        except Exception as e:
+            print(f"[ОШИБКА] Не удалось переместить {nf} -> {dest}: {e}")
         
     try:
         os.rmdir("temp_converted")
@@ -89,7 +100,12 @@ def mp4_convert():
 
 
 def safe_mode():
+    import shutil
     mkvmerge = get_tool_path('mkvmerge.exe')
+    if not shutil.which(mkvmerge) and not os.path.exists(mkvmerge):
+        print("\n[КРИТИЧЕСКАЯ ОШИБКА] Не найден файл mkvmerge.exe!")
+        print("Скопируйте mkvmerge.exe в ту же папку, где находится anime_toolkit.exe и ваше видео.")
+        return
     print("1. Удалить аудио и сабы (оставить только видео)")
     print("2. Оставить только выбранные видео и аудио дорожки")
     print("3. Слить с внешним аудио (.mka или .ac3)")
@@ -200,12 +216,25 @@ def safe_mode():
     print("\nОчистка старых файлов...")
     for f in files:
         name, _ = os.path.splitext(f)
-        if os.path.exists(f"{name}_processed.mkv"):
+        processed = f"{name}_processed.mkv"
+        if os.path.exists(processed):
             print(f"Удаляю старое видео: {f}")
-            os.remove(f)
-            if '3' not in valid_choices:
-                if os.path.exists(f"{name}.mka"):
-                    os.remove(f"{name}.mka")
+            try:
+                os.remove(f)
+                # Переименовываем обработанный файл обратно в нормальное имя
+                os.rename(processed, f"{name}.mkv")
+            except Exception as e:
+                print(f"[ОШИБКА] Не удалось удалить/переименовать {f}: {e}")
+                
+            # Если мы сливали аудио, удаляем исходные внешние дорожки
+            if '3' in valid_choices:
+                for ext_audio in [f"{name}.mka", f"{name}.ac3"]:
+                    if os.path.exists(ext_audio):
+                        try:
+                            os.remove(ext_audio)
+                            print(f"Удален исходный аудиофайл: {ext_audio}")
+                        except:
+                            pass
                     
     print("Успешно!")
 
@@ -271,16 +300,74 @@ def smart_rename():
         print("\nНет файлов для переименования.")
         return
         
-    if input("\nПереименовать эти файлы? (y/n): ").lower() in ('y', 'yes', 'д', 'да'):
+    ans = input("\nПереименовать эти файлы? (Нажмите Enter для 'Да', или введите 'n' для 'Нет'): ").strip().lower()
+    if ans not in ('n', 'no', 'н', 'нет', '0', 'т', 'ytr'):
         for old_name, new_name in rename_plan:
             counter = 1
             final_new_name = new_name
-            while os.path.exists(final_new_name):
+            while os.path.exists(final_new_name) and old_name.lower() != final_new_name.lower():
                 n, e = os.path.splitext(new_name)
                 final_new_name = f"{n}_{counter}{e}"
                 counter += 1
-            os.rename(old_name, final_new_name)
-        print("Успешно!")
+                
+            try:
+                os.rename(old_name, final_new_name)
+            except Exception as e:
+                print(f"[ОШИБКА] Не удалось переименовать {old_name}: {e}")
+                print("Возможно, файл открыт в торренте или видеоплеере!")
+        print("\nПроцесс переименования завершен!")
+    else:
+        print("\nПереименование отменено пользователем.")
+
+def split_video():
+    import shutil
+    mkvmerge = get_tool_path('mkvmerge.exe')
+    if not shutil.which(mkvmerge) and not os.path.exists(mkvmerge):
+        print("\n[КРИТИЧЕСКАЯ ОШИБКА] Не найден файл mkvmerge.exe!")
+        print("Скопируйте mkvmerge.exe в ту же папку, где находится anime_toolkit.exe.")
+        return
+        
+    print("\n=== Нарезка видео на части (Без потери качества) ===")
+    print("Идеально для обхода лимитов в Telegram (2000 МБ) или Discord (25 МБ).")
+    size_input = input("Укажите максимальный размер одной части в Мегабайтах (по умолчанию 1900): ").strip()
+    
+    if not size_input:
+        size_input = "1900"
+        
+    if not size_input.isdigit():
+        print("Ошибка: нужно ввести число.")
+        return
+        
+    exts = ('*.mkv', '*.mp4', '*.hevc', '*.avi', '*.m2ts', '*.mov')
+    files = []
+    for e in exts: files.extend(glob.glob(e))
+    
+    if not files:
+        print("Нет видеофайлов для нарезки.")
+        return
+        
+    for f in files:
+        name, ext = os.path.splitext(f)
+        # Игнорируем уже порезанные файлы (с "-001" на конце)
+        if re.search(r'-\d{3}$', name):
+            continue
+            
+        print(f"\nРежем файл: {f}")
+        output = f"{name}_part.mkv"
+        cmd = [mkvmerge, "-o", output, "--split", f"size:{size_input}M", f]
+        res = subprocess.run(cmd)
+        
+        if res.returncode == 0:
+            print(f"[УСПЕХ] Файл {f} успешно порезан на части!")
+            ans = input(f"Удалить оригинальный файл '{f}'? (y/n): ").strip().lower()
+            if ans in ('y', 'yes', 'д', 'да'):
+                try:
+                    os.remove(f)
+                    print("Оригинал удален.")
+                except Exception as e:
+                    print(f"[ОШИБКА] Не удалось удалить {f}: {e}")
+        else:
+            print(f"[ОШИБКА] Не удалось порезать {f}.")
 
 def main():
     # Fix console encoding for Windows
@@ -295,6 +382,7 @@ def main():
         print("1. Конвертация всех видео в MP4 (HEVC + AAC)")
         print("2. Safe Mode (Удалить/Извлечь/Добавить аудио)")
         print("3. Умное переименование серий")
+        print("4. Разбить видео на части (Для Telegram / Discord)")
         print("0. Выход")
         print("=============================================")
         
@@ -306,6 +394,10 @@ def main():
             safe_mode()
         elif choice == '3':
             smart_rename()
+            input("\nНажмите Enter для продолжения...")
+        elif choice == '4':
+            split_video()
+            input("\nНажмите Enter для продолжения...")
         elif choice == '0':
             break
             
