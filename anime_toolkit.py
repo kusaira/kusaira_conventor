@@ -59,13 +59,31 @@ def mp4_convert():
         print(f"Обрабатывается: {f}")
         print(f"--------------------------------------------------")
         
+        # Проверяем формат аудио
+        probe_cmd = [ffmpeg, "-i", f]
+        probe_res = subprocess.run(probe_cmd, stderr=subprocess.PIPE, text=True, encoding='utf-8', errors='ignore')
+        
+        audio_codec = "unknown"
+        for line in probe_res.stderr.split('\n'):
+            if "Stream" in line and "Audio:" in line:
+                if "aac" in line.lower():
+                    audio_codec = "aac"
+                break
+                
+        if audio_codec == "aac":
+            print("[ИНФО] Звуковая дорожка уже в AAC. Перекодировка звука не требуется (прямое копирование).")
+            audio_args = ["-c:a", "copy"]
+        else:
+            print("[ИНФО] Звуковая дорожка будет перекодирована в AAC (192 kbps).")
+            audio_args = ["-c:a", "aac", "-b:a", "192k"]
+        
         name, _ = os.path.splitext(f)
         out_path = os.path.join("temp_converted", f"{name}.mp4")
         
         if vcodec == "libx265":
-            cmd = [ffmpeg, "-i", f, "-c:v", vcodec, "-preset", "fast", "-crf", "26", "-c:a", "aac", "-b:a", "192k", out_path]
+            cmd = [ffmpeg, "-i", f, "-c:v", vcodec, "-preset", "fast", "-crf", "26"] + audio_args + ["-movflags", "+faststart", out_path]
         else:
-            cmd = [ffmpeg, "-i", f, "-c:v", vcodec, "-preset", "fast", "-b:v", "8000k", "-maxrate", "10000k", "-bufsize", "16000k", "-c:a", "aac", "-b:a", "192k", out_path]
+            cmd = [ffmpeg, "-i", f, "-c:v", vcodec, "-preset", "fast", "-b:v", "8000k", "-maxrate", "10000k", "-bufsize", "16000k"] + audio_args + ["-movflags", "+faststart", out_path]
             
         res = subprocess.run(cmd)
         
@@ -328,7 +346,7 @@ def split_video():
         return
         
     print("\n=== Нарезка видео на части (Без потери качества) ===")
-    print("Идеально для обхода лимитов в Telegram (2000 МБ) или Discord (25 МБ).")
+    print("Идеально для обхода лимитов в Telegram (до 2000 МБ).")
     size_input = input("Укажите максимальный размер одной части в Мегабайтах (по умолчанию 1900): ").strip()
     
     if not size_input:
@@ -359,6 +377,18 @@ def split_video():
         
         if res.returncode == 0:
             print(f"[УСПЕХ] Файл {f} успешно порезан на части!")
+            
+            # Если оригинал был не mkv (например, mp4), быстро возвращаем ему родной контейнер
+            if ext.lower() != '.mkv':
+                print(f"Возвращаем формат {ext} (без потери качества)...")
+                ffmpeg = get_tool_path('ffmpeg.exe')
+                parts = glob.glob(f"{name}_part-*.mkv")
+                for part in parts:
+                    part_name, _ = os.path.splitext(part)
+                    final_part = f"{part_name}{ext}"
+                    subprocess.run([ffmpeg, "-y", "-i", part, "-c", "copy", final_part], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                    os.remove(part)
+                    
             ans = input(f"Удалить оригинальный файл '{f}'? (y/n): ").strip().lower()
             if ans in ('y', 'yes', 'д', 'да'):
                 try:
@@ -368,6 +398,93 @@ def split_video():
                     print(f"[ОШИБКА] Не удалось удалить {f}: {e}")
         else:
             print(f"[ОШИБКА] Не удалось порезать {f}.")
+
+def merge_videos():
+    import shutil
+    mkvmerge = get_tool_path('mkvmerge.exe')
+    if not shutil.which(mkvmerge) and not os.path.exists(mkvmerge):
+        print("\n[КРИТИЧЕСКАЯ ОШИБКА] Не найден файл mkvmerge.exe!")
+        print("Скопируйте mkvmerge.exe в ту же папку, где находится anime_toolkit.exe.")
+        return
+        
+    print("\n=== Склейка видео (Без потери качества) ===")
+    print("Этот режим объединит все видеофайлы в папке в один большой файл.")
+    print("Файлы будут склеиваться в алфавитном порядке их названий.")
+    
+    exts = ('*.mkv', '*.mp4', '*.hevc', '*.avi', '*.m2ts', '*.mov')
+    files = []
+    for e in exts: files.extend(glob.glob(e))
+    
+    files.sort()
+    
+    if not files or len(files) < 2:
+        print("В папке должно быть как минимум 2 видеофайла для склейки.")
+        return
+        
+    print("\nФайлы для склейки (по порядку):")
+    for i, f in enumerate(files):
+        print(f"{i+1}. {f}")
+        
+    ans = input("\nСклеить эти файлы в один? (y/n): ").strip().lower()
+    if ans not in ('y', 'yes', 'д', 'да'):
+        print("Отмена.")
+        return
+        
+    _, target_ext = os.path.splitext(files[0])
+    output_name = input("Введите название итогового файла (без расширения, по умолчанию 'merged_video'): ").strip()
+    if not output_name:
+        output_name = "merged_video"
+        
+    # Удаляем запрещенные символы для Windows и ffmpeg (например, двоеточие или слеши)
+    for c in '<>:"/\\|?*':
+        output_name = output_name.replace(c, '_')
+        
+    output_file_mkv = f"{output_name}.mkv"
+    output_file_final = f"{output_name}{target_ext}"
+    
+    print("\nНачинаю склейку (Шаг 1: mkvmerge)...")
+    cmd = [mkvmerge, "-o", output_file_mkv, files[0]]
+    for f in files[1:]:
+        cmd.extend(["+", f])
+        
+    res = subprocess.run(cmd)
+    
+    if res.returncode != 0:
+        print("\n[ВНИМАНИЕ] mkvmerge не справился (часто бывает при HEVC MP4). Пробую через FFmpeg...")
+        ffmpeg = get_tool_path('ffmpeg.exe')
+        if shutil.which(ffmpeg) or os.path.exists(ffmpeg):
+            with open("concat_list.txt", "w", encoding="utf-8") as txt:
+                for f in files:
+                    safe_f = f.replace("'", "'\\''")
+                    txt.write(f"file '{safe_f}'\n")
+            cmd2 = [ffmpeg, "-y", "-f", "concat", "-safe", "0", "-i", "concat_list.txt", "-c", "copy", output_file_final]
+            res = subprocess.run(cmd2)
+            try:
+                os.remove("concat_list.txt")
+            except:
+                pass
+        else:
+            print("[ОШИБКА] ffmpeg.exe не найден для альтернативной склейки.")
+            
+    if res.returncode == 0:
+        # Возвращаем родной формат, если mkvmerge отработал, но нам нужен был MP4
+        if os.path.exists(output_file_mkv) and target_ext.lower() != '.mkv':
+            print(f"Возвращаем формат {target_ext} (без потери качества)...")
+            ffmpeg = get_tool_path('ffmpeg.exe')
+            subprocess.run([ffmpeg, "-y", "-i", output_file_mkv, "-c", "copy", output_file_final], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+            os.remove(output_file_mkv)
+            
+        print(f"\n[УСПЕХ] Видео успешно склеены в файл {output_file_final}!")
+        ans_del = input("Удалить исходные куски? (y/n): ").strip().lower()
+        if ans_del in ('y', 'yes', 'д', 'да'):
+            for f in files:
+                try:
+                    os.remove(f)
+                except:
+                    pass
+            print("Исходные файлы удалены.")
+    else:
+        print("\n[ОШИБКА] Не удалось склеить файлы ни одним из способов. Проверьте, что у них одинаковый кодек и разрешение.")
 
 def main():
     # Fix console encoding for Windows
@@ -382,7 +499,8 @@ def main():
         print("1. Конвертация всех видео в MP4 (HEVC + AAC)")
         print("2. Safe Mode (Удалить/Извлечь/Добавить аудио)")
         print("3. Умное переименование серий")
-        print("4. Разбить видео на части (Для Telegram / Discord)")
+        print("4. Разбить видео на части (Для Telegram)")
+        print("5. Склеить видео в один файл")
         print("0. Выход")
         print("=============================================")
         
@@ -397,6 +515,9 @@ def main():
             input("\nНажмите Enter для продолжения...")
         elif choice == '4':
             split_video()
+            input("\nНажмите Enter для продолжения...")
+        elif choice == '5':
+            merge_videos()
             input("\nНажмите Enter для продолжения...")
         elif choice == '0':
             break
