@@ -494,7 +494,7 @@ def main():
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
         print("=============================================")
-        print("             MEDIA TOOLKIT                   ")
+        print("          Kusaira Conventor v2.0             ")
         print("=============================================")
         print("1. Конвертация всех видео в MP4 (HEVC + AAC)")
         print("2. Safe Mode (Удалить/Извлечь/Добавить аудио)")
