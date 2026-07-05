@@ -4,9 +4,9 @@
 
 ## 🔥 Key Features
 
-1. **Turbo MP4 Conversion**
-   - Hardware-accelerated (NVENC) batch conversion to HEVC/H.265 + AAC.
-   - Significantly compresses file size with zero visual quality loss.
+1. **Turbo MP4 Conversion (HEVC + AAC)**
+   - Hardware-accelerated (NVENC) batch conversion to HEVC/H.265.
+   - **Smart Audio Scan**: Automatically detects if the audio track is already in AAC format and bypasses re-encoding (direct stream copy) to preserve 100% original quality and save time.
 
 2. **Safe Mode (Track Cleanup)**
    - Easily strip unnecessary audio tracks, hardsubs, global tags, and embedded fonts.
@@ -16,6 +16,14 @@
 3. **Smart Renamer**
    - Automatically extracts episode numbers from messy file names and standardizes them (e.g., `[1]_Prefix.mp4`).
    - Built-in overwrite protection to prevent data loss.
+
+4. **Lossless Video Splitter (for Telegram)**
+   - Cuts large video files into smaller chunks (e.g., < 2000 MB) without re-encoding! 
+   - Dynamically preserves the original file extension (MKV or MP4).
+
+5. **Lossless Video Merger**
+   - Combines multiple video files into one large file instantly.
+   - Features a smart fallback mechanism (uses `mkvmerge` by default, gracefully fails over to `FFmpeg` if stream parameters differ).
 
 ## 📥 How to Use
 
