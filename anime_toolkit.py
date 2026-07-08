@@ -190,6 +190,8 @@ def safe_mode():
         audio_ids = input("Введите ID аудиодорожек (через запятую): ")
         audio_ids = audio_ids.replace(' ', ',').replace(',,', ',')
         if audio_ids.endswith(','): audio_ids = audio_ids[:-1]
+    
+    used_audios = []
     for f in files:
         name, ext = os.path.splitext(f)
         output = f"{name}_processed.mkv"
@@ -222,26 +224,38 @@ def safe_mode():
         if '3' in valid_choices:
             print("[ШАГ 3] Слияние с внешним аудио...")
             audio_added = False
-            mka_path = f"{name}.mka"
-            if os.path.exists(mka_path):
-                print(f"Добавляем аудиофайл: {mka_path}")
-                cmd = [mkvmerge, "--output", f"temp\\{name}_step3.mkv", tempfile, mka_path]
+            
+            core_name = name
+            for suffix in ['_processed', '_deep', '_raw', '_clean', '_audio', '_voice']:
+                if core_name.lower().endswith(suffix):
+                    core_name = core_name[:-len(suffix)]
+                    
+            possible_audios = []
+            for ext_audio in ['*.mka', '*.ac3', '*.m4a', '*.mp3', '*.wav', '*.flac']:
+                possible_audios.extend(glob.glob(ext_audio))
+                
+            matched_audio = None
+            for audio_f in possible_audios:
+                audio_core = os.path.splitext(audio_f)[0]
+                for suffix in ['_processed', '_deep', '_raw', '_clean', '_audio', '_voice']:
+                    if audio_core.lower().endswith(suffix):
+                        audio_core = audio_core[:-len(suffix)]
+                
+                if core_name == audio_core or audio_core.startswith(core_name) or core_name.startswith(audio_core):
+                    matched_audio = audio_f
+                    break
+                    
+            if matched_audio:
+                print(f"Добавляем внешний аудиофайл: {matched_audio}")
+                cmd = [mkvmerge, "--output", f"temp\\{name}_step3.mkv", tempfile, matched_audio]
                 res = subprocess.run(cmd)
                 if res.returncode == 0:
                     os.replace(f"temp\\{name}_step3.mkv", tempfile)
                     audio_added = True
-                    
-            ac3_path = f"{name}.ac3"
-            if os.path.exists(ac3_path):
-                print(f"Добавляем аудиофайл: {ac3_path}")
-                cmd = [mkvmerge, "--output", f"temp\\{name}_step3b.mkv", tempfile, ac3_path]
-                res = subprocess.run(cmd)
-                if res.returncode == 0:
-                    os.replace(f"temp\\{name}_step3b.mkv", tempfile)
-                    audio_added = True
-                    
+                    used_audios.append(matched_audio)
+            
             if not audio_added:
-                print("[!] Внешние аудиофайлы не найдены, пропускаем.")
+                print(f"[!] Внешние аудиофайлы для '{name}' не найдены, пропускаем.")
                 
         os.replace(tempfile, output)
         subprocess.run("rd /s /q temp", shell=True)
@@ -273,7 +287,7 @@ def safe_mode():
                 
             # Если мы сливали аудио, удаляем исходные внешние дорожки
             if '3' in valid_choices:
-                for ext_audio in [f"{name}.mka", f"{name}.ac3"]:
+                for ext_audio in used_audios:
                     if os.path.exists(ext_audio):
                         try:
                             os.remove(ext_audio)
