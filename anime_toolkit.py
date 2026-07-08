@@ -80,10 +80,17 @@ def mp4_convert():
         name, _ = os.path.splitext(f)
         out_path = os.path.join("temp_converted", f"{name}.mp4")
         
+        v_args = []
         if vcodec == "libx265":
-            cmd = [ffmpeg, "-i", f, "-c:v", vcodec, "-preset", "fast", "-crf", "26"] + audio_args + ["-movflags", "+faststart", out_path]
-        else:
-            cmd = [ffmpeg, "-i", f, "-c:v", vcodec, "-preset", "fast", "-b:v", "8000k", "-maxrate", "10000k", "-bufsize", "16000k"] + audio_args + ["-movflags", "+faststart", out_path]
+            v_args = ["-c:v", vcodec, "-preset", "fast", "-crf", "26"]
+        elif vcodec == "hevc_nvenc":
+            v_args = ["-c:v", vcodec, "-preset", "fast", "-cq", "28", "-b:v", "0"]
+        elif vcodec == "hevc_amf":
+            v_args = ["-c:v", vcodec, "-quality", "speed", "-rc", "cqp", "-qp_p", "28", "-qp_i", "28"]
+        elif vcodec == "hevc_qsv":
+            v_args = ["-c:v", vcodec, "-preset", "fast", "-global_quality", "28"]
+            
+        cmd = [ffmpeg, "-i", f] + v_args + audio_args + ["-movflags", "+faststart", out_path]
             
         res = subprocess.run(cmd)
         
@@ -93,10 +100,17 @@ def mp4_convert():
                 os.remove(out_path)
         else:
             print(f"[УСПЕХ] Конвертация завершена. Удаляю старый файл...")
-            try:
-                os.remove(f)
-            except Exception as e:
-                print(f"[ОШИБКА] Не удалось удалить старый файл {f}: {e}")
+            import time
+            deleted = False
+            for _ in range(5):
+                try:
+                    os.remove(f)
+                    deleted = True
+                    break
+                except:
+                    time.sleep(1)
+            if not deleted:
+                print(f"[ОШИБКА] Файл '{f}' занят другой программой. Не удалось удалить.")
                 
     print("\nПеремещаю новые файлы в текущую папку...")
     new_files = glob.glob("temp_converted/*.mp4")
@@ -231,18 +245,30 @@ def safe_mode():
         os.replace(tempfile, output)
         subprocess.run("rd /s /q temp", shell=True)
         
+    import time
     print("\nОчистка старых файлов...")
     for f in files:
         name, _ = os.path.splitext(f)
         processed = f"{name}_processed.mkv"
         if os.path.exists(processed):
             print(f"Удаляю старое видео: {f}")
-            try:
-                os.remove(f)
-                # Переименовываем обработанный файл обратно в нормальное имя
-                os.rename(processed, f"{name}.mkv")
-            except Exception as e:
-                print(f"[ОШИБКА] Не удалось удалить/переименовать {f}: {e}")
+            deleted = False
+            for _ in range(5):
+                try:
+                    os.remove(f)
+                    deleted = True
+                    break
+                except:
+                    time.sleep(1)
+            
+            if deleted:
+                try:
+                    os.rename(processed, f"{name}.mkv")
+                except Exception as e:
+                    print(f"[ОШИБКА] Не удалось переименовать обработанный файл: {e}")
+            else:
+                print(f"[ОШИБКА] Файл '{f}' занят другой программой (возможно, открыт в плеере).")
+                print(f"Из-за этого новый файл сохранен рядом как: '{processed}'")
                 
             # Если мы сливали аудио, удаляем исходные внешние дорожки
             if '3' in valid_choices:
