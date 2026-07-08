@@ -82,13 +82,13 @@ def mp4_convert():
         
         v_args = []
         if vcodec == "libx265":
-            v_args = ["-c:v", vcodec, "-preset", "fast", "-crf", "26"]
+            v_args = ["-c:v", vcodec, "-preset", "fast", "-crf", "20"]
         elif vcodec == "hevc_nvenc":
-            v_args = ["-c:v", vcodec, "-preset", "fast", "-cq", "28", "-b:v", "0"]
+            v_args = ["-c:v", vcodec, "-preset", "fast", "-rc", "vbr", "-cq", "20", "-b:v", "0"]
         elif vcodec == "hevc_amf":
-            v_args = ["-c:v", vcodec, "-quality", "speed", "-rc", "cqp", "-qp_p", "28", "-qp_i", "28"]
+            v_args = ["-c:v", vcodec, "-quality", "speed", "-rc", "cqp", "-qp_p", "20", "-qp_i", "20"]
         elif vcodec == "hevc_qsv":
-            v_args = ["-c:v", vcodec, "-preset", "fast", "-global_quality", "28"]
+            v_args = ["-c:v", vcodec, "-preset", "fast", "-global_quality", "20"]
             
         cmd = [ffmpeg, "-i", f] + v_args + audio_args + ["-movflags", "+faststart", out_path]
             
