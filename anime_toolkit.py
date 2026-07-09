@@ -46,6 +46,20 @@ def mp4_convert():
         
     print(f"\nВыбран кодек: {vcodec}")
     
+    nvenc_mode = "vbr_hq"
+    if vcodec == "hevc_nvenc":
+        print("\nВыберите режим сжатия (только для NVENC):")
+        print("1. VBR_HQ (Элитное) - Идеально для аниме. Умный VBR, убирает 'лесенку' на небе. Файл будет чуть больше.")
+        print("2. VBR (Стандарт) - Хорошее качество и маленький вес.")
+        print("3. CBR (Жесткий) - Битрейт 8000k. Файл будет огромным (до 1ГБ). Используйте только если требует плеер.")
+        rc_choice = input("Ваш выбор (по умолчанию 1): ").strip()
+        if rc_choice == '2':
+            nvenc_mode = "vbr"
+        elif rc_choice == '3':
+            nvenc_mode = "cbr"
+        else:
+            nvenc_mode = "vbr_hq"
+    
     if not os.path.exists("temp_converted"):
         os.makedirs("temp_converted")
     
@@ -84,7 +98,12 @@ def mp4_convert():
         if vcodec == "libx265":
             v_args = ["-c:v", vcodec, "-preset", "fast", "-crf", "20"]
         elif vcodec == "hevc_nvenc":
-            v_args = ["-c:v", vcodec, "-preset", "fast", "-rc", "vbr", "-cq", "20", "-b:v", "0"]
+            if nvenc_mode == "vbr_hq":
+                v_args = ["-c:v", vcodec, "-preset", "p5", "-rc", "vbr_hq", "-cq", "19", "-b:v", "0", "-spatial_aq", "1", "-aq-strength", "8"]
+            elif nvenc_mode == "cbr":
+                v_args = ["-c:v", vcodec, "-preset", "fast", "-b:v", "8000k", "-maxrate", "8000k", "-bufsize", "8000k"]
+            else:
+                v_args = ["-c:v", vcodec, "-preset", "fast", "-rc", "vbr", "-cq", "20", "-b:v", "0"]
         elif vcodec == "hevc_amf":
             v_args = ["-c:v", vcodec, "-quality", "speed", "-rc", "cqp", "-qp_p", "20", "-qp_i", "20"]
         elif vcodec == "hevc_qsv":
@@ -538,7 +557,7 @@ def main():
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
         print("=============================================")
-        print("          Kusaira Conventor v2.1             ")
+        print("          Kusaira Conventor v2.2             ")
         print("=============================================")
         print("1. Конвертация всех видео в MP4 (HEVC + AAC)")
         print("2. Safe Mode (Удалить/Извлечь/Добавить аудио)")
