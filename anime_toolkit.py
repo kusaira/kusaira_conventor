@@ -301,12 +301,12 @@ def safe_mode():
 def smart_rename():
     prefix = input("Введите префикс (например 'Наруто', получится '1_Наруто.mp4'). Оставьте пустым, чтобы были только цифры: ").strip()
     
-    exts = ('*.mp4', '*.mkv', '*.avi', '*.mov', '*.m4v')
+    exts = ('*.mp4', '*.mkv', '*.avi', '*.mov', '*.m4v', '*.mka')
     files = []
     for e in exts: files.extend(glob.glob(e))
     
     if not files:
-        print("Нет видеофайлов для переименования.")
+        print("Нет файлов для переименования.")
         return
 
     ignore_list = {'720', '480', '2160', '264', '265', '10-bit', '8-bit'}
