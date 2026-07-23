@@ -345,16 +345,18 @@ def smart_rename():
     for filename, nums, ext in files_with_nums:
         if index_to_use < len(nums):
             ep_num = nums[index_to_use]
-            if prefix:
-                new_name = f"[{ep_num}]_{prefix}{ext}"
-            else:
-                new_name = f"[{ep_num}]{ext}"
-                
-            if filename != new_name:
-                rename_plan.append((filename, new_name))
-                print(f"Будет: {filename} --> {new_name}")
         else:
-            print(f"[!] В файле {filename} недостаточно числовых блоков, пропускаем.")
+            # Если в файле меньше блоков (например, в аудио нет номера сезона), берем последнюю доступную цифру
+            ep_num = nums[-1]
+            
+        if prefix:
+            new_name = f"[{ep_num}]_{prefix}{ext}"
+        else:
+            new_name = f"[{ep_num}]{ext}"
+            
+        if filename != new_name:
+            rename_plan.append((filename, new_name))
+            print(f"Будет: {filename} --> {new_name}")
             
     if not rename_plan:
         print("\nНет файлов для переименования.")
