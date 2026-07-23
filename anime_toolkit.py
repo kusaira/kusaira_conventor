@@ -102,13 +102,16 @@ def mp4_convert():
             print(f"[УСПЕХ] Конвертация завершена. Удаляю старый файл...")
             import time
             deleted = False
-            for _ in range(5):
+            for i in range(10):
                 try:
                     os.remove(f)
                     deleted = True
                     break
                 except:
+                    if i == 0:
+                        print("Файл занят другой программой. Ожидание освобождения...")
                     time.sleep(1)
+            
             if not deleted:
                 print(f"[ОШИБКА] Файл '{f}' занят другой программой. Не удалось удалить.")
                 
@@ -268,12 +271,14 @@ def safe_mode():
         if os.path.exists(processed):
             print(f"Удаляю старое видео: {f}")
             deleted = False
-            for _ in range(5):
+            for i in range(10):
                 try:
                     os.remove(f)
                     deleted = True
                     break
                 except:
+                    if i == 0:
+                        print("Файл занят (возможно, торрентом или плеером). Ожидание освобождения...")
                     time.sleep(1)
             
             if deleted:
