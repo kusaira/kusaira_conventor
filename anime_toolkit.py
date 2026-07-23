@@ -536,6 +536,77 @@ def merge_videos():
         print("\n[ОШИБКА] Не удалось склеить файлы ни одним из способов. Проверьте, что у них одинаковый кодек и разрешение.")
     
     input("\nНажмите Enter для возврата в меню...")
+    input("\nНажмите Enter для возврата в меню...")
+
+def change_volume():
+    ffmpeg = get_tool_path('ffmpeg.exe')
+    if not shutil.which(ffmpeg) and not os.path.exists(ffmpeg):
+        print("\n[КРИТИЧЕСКАЯ ОШИБКА] Не найден файл ffmpeg.exe!")
+        return
+        
+    exts = ('*.mp4', '*.mkv', '*.avi', '*.mov', '*.m4v')
+    files = []
+    for e in exts: files.extend(glob.glob(e))
+    
+    if not files:
+        print("\nНет видеофайлов для изменения громкости.")
+        return
+        
+    print("\nИзменение громкости звука (видео копируется без потери качества).")
+    print("Примеры ввода:")
+    print("  0.5   - сделать в два раза тише (50%)")
+    print("  2.0   - сделать в два раза громче (200%)")
+    print("  -10dB - убавить на 10 децибел")
+    print("  10dB  - прибавить 10 децибел")
+    vol = input("Введите нужное значение: ").strip()
+    if not vol:
+        print("Отмена.")
+        return
+        
+    if not os.path.exists("temp_volume"):
+        os.makedirs("temp_volume")
+        
+    for f in files:
+        print(f"\n--------------------------------------------------")
+        print(f"Обработка громкости: {f}")
+        name, ext = os.path.splitext(f)
+        out_path = os.path.join("temp_volume", f"{name}_vol{ext}")
+        
+        cmd = [ffmpeg, "-i", f, "-c:v", "copy", "-c:a", "aac", "-b:a", "192k", "-filter:a", f"volume={vol}", out_path]
+        res = subprocess.run(cmd)
+        
+        if res.returncode == 0:
+            print("Успех! Замена оригинала...")
+            import time
+            deleted = False
+            for i in range(10):
+                try:
+                    os.remove(f)
+                    deleted = True
+                    break
+                except:
+                    if i == 0:
+                        print("Файл занят. Ожидание освобождения...")
+                    time.sleep(1)
+            
+            if deleted:
+                try:
+                    os.rename(out_path, f)
+                except:
+                    print(f"[ОШИБКА] Не удалось переименовать файл {out_path} в {f}")
+            else:
+                print(f"[ОШИБКА] Не удалось удалить оригинал {f}.")
+        else:
+            print(f"[ОШИБКА] Не удалось изменить громкость для {f}")
+            if os.path.exists(out_path):
+                os.remove(out_path)
+                
+    try:
+        shutil.rmtree("temp_volume")
+    except:
+        pass
+        
+    print("\nПроцесс завершен!")
 
 def main():
     # Fix console encoding for Windows
@@ -545,13 +616,14 @@ def main():
     while True:
         os.system('cls' if os.name == 'nt' else 'clear')
         print("=============================================")
-        print("          Kusaira Conventor v2.2-CBR         ")
+        print("          Kusaira Conventor v2.3             ")
         print("=============================================")
         print("1. Конвертация всех видео в MP4 (HEVC + AAC)")
         print("2. Safe Mode (Удалить/Извлечь/Добавить аудио)")
         print("3. Умное переименование серий")
         print("4. Разбить видео на части (Для Telegram)")
         print("5. Склеить видео в один файл")
+        print("6. Изменить громкость аудио в видео")
         print("0. Выход")
         print("=============================================")
         
@@ -569,6 +641,9 @@ def main():
             input("\nНажмите Enter для продолжения...")
         elif choice == '5':
             merge_videos()
+            input("\nНажмите Enter для продолжения...")
+        elif choice == '6':
+            change_volume()
             input("\nНажмите Enter для продолжения...")
         elif choice == '0':
             break
